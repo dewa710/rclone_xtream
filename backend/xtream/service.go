@@ -49,7 +49,6 @@ func (s *Service) Load(ctx context.Context) error {
 			Size: m.FileSize, // aus Xtream API
 		}
 	}
-	return nil
 	fs.Infof(s.fs, "Load Series")
 
 	// Series
