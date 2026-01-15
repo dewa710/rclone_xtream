@@ -14,4 +14,5 @@ type SeriesEpisode struct {
 	EpisodeNum   int    `json:"episode_num"`
 	Title        string `json:"title"`
 	ContainerExt string `json:"container_extension"`
+	FileSize     int64  `json:"file_size"`
 }

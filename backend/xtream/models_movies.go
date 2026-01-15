@@ -11,4 +11,5 @@ type VodStream struct {
 	CategoryID   string `json:"category_id"`
 	ContainerExt string `json:"container_extension"`
 	Year         string `json:"year"`
+	FileSize     int64  `json:"file_size"`
 }

@@ -8,20 +8,25 @@ import (
 	"github.com/rclone/rclone/fs"
 )
 
+type StreamEntry struct {
+	URL  string
+	Size int64
+}
+
 type Service struct {
 	fs        *Fs
 	api       *Client
 	cache     *Cache
-	movieMap  map[string]string
-	seriesMap map[string]string
+	movieMap  map[string]StreamEntry
+	seriesMap map[string]StreamEntry
 }
 
 func NewService(api *Client) *Service {
 	return &Service{
 		api:       api,
 		cache:     NewCache(10 * time.Minute),
-		movieMap:  make(map[string]string), // FIX
-		seriesMap: make(map[string]string), // FIX
+		movieMap:  make(map[string]StreamEntry), // FIX
+		seriesMap: make(map[string]StreamEntry), // FIX
 	}
 }
 
@@ -39,7 +44,10 @@ func (s *Service) Load(ctx context.Context) error {
 			ext = "mp4"
 		}
 		remote := m.Name + "." + ext
-		s.movieMap[remote] = s.MovieURL(m.StreamID, ext)
+		s.movieMap[remote] = StreamEntry{
+			URL:  s.MovieURL(m.StreamID, ext),
+			Size: m.FileSize, // aus Xtream API
+		}
 	}
 	return nil
 	fs.Infof(s.fs, "Load Series")
@@ -63,7 +71,10 @@ func (s *Service) Load(ctx context.Context) error {
 					ext = "mp4"
 				}
 				remote := ep.Title + "." + ext
-				s.seriesMap[remote] = s.SeriesURL(ep.ID, ext)
+				s.seriesMap[remote] = StreamEntry{
+					URL:  s.SeriesURL(ep.ID, ext),
+					Size: ep.FileSize,
+				}
 			}
 		}
 	}
@@ -130,25 +141,26 @@ func (s *Service) SeriesURL(id int, ext string) string {
 		s.api.host, s.api.user, s.api.pass, id, ext)
 }
 
-func (s *Service) ResolveURL(remote string) (string, error) {
-	if url, ok := s.movieMap[remote]; ok {
-		return url, nil
+func (s *Service) ResolveURL(remote string) (StreamEntry, error) {
+	if ent, ok := s.movieMap[remote]; ok {
+		return ent, nil
 	}
-	if url, ok := s.seriesMap[remote]; ok {
-		return url, nil
+	if ent, ok := s.seriesMap[remote]; ok {
+		return ent, nil
 	}
-	return "", fs.ErrorObjectNotFound
+	return StreamEntry{}, fs.ErrorObjectNotFound
 }
 
 func (s *Service) NewObject(ctx context.Context, remote string) (fs.Object, error) {
-	url, err := s.ResolveURL(remote)
+	ent, err := s.ResolveURL(remote)
 	if err != nil {
 		return nil, err
 	}
 	return &Object{
 		fs:   s.fs,
 		name: remote,
-		url:  url,
+		url:  ent.URL,
+		size: ent.Size,
 	}, nil
 }
 
